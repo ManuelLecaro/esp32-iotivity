@@ -17,14 +17,20 @@ choice ESP32_IOTIVITY_MODE
     prompt "iotivity: mode select"
     default IOTIVITY_CLIENT
     help
-        select iotvity mode(client/server).
+        select iotivity mode(client/server/blinker/blinker_server).
 
 config IOTIVITY_CLIENT
     bool "iotivity client"
  
 config IOTIVITY_SERVER
     bool "iotivity server"
- 
+
+config IOTIVITY_SERVER_BLINKER
+    bool "iotivity server blinker"
+
+config IOTIVITY_CLIENT_BLINKER
+    bool "iotivity client blinker"
+
 endchoice
 
 config OC_DEBUG
@@ -36,6 +42,11 @@ config APP_DEBUG
     bool "APP_DEBUG"
     help
         enable or disable application debug
+
+config ENABLE_PLUG
+    bool "ENABLE_PLUG"
+    help
+        enable or disable plug options
 
 config ENABLE_LIGHT
     bool "ENABLE_LIGHT"
@@ -61,5 +72,11 @@ config TCP
     bool "TCP"
     help
         enable or disable TCP
+
+config PKI
+    bool "PKI"
+    help
+        enable or disable OC_PKI
+
 
 endmenu

@@ -33,8 +33,12 @@
 #include "lightbulb.h"
 #include "debug_print.h"
 
+static bool g_wifi_reconnect_flag = true;
+
+#define EXAMPLE_ESP_WIFI_MODE_AP   CONFIG_ESP_WIFI_MODE_AP //TRUE:AP FALSE:STA
 #define EXAMPLE_WIFI_SSID CONFIG_WIFI_SSID
 #define EXAMPLE_WIFI_PASS CONFIG_WIFI_PASSWORD
+#define EXAMPLE_MAX_STA_CONN 60
 
 static EventGroupHandle_t wifi_event_group;
 
@@ -162,11 +166,14 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
     switch (event->event_id) {
     case SYSTEM_EVENT_STA_START:
+      printf("1Server started\n");
         esp_wifi_connect();
         break;
 
     case SYSTEM_EVENT_STA_GOT_IP:
         xEventGroupSetBits(wifi_event_group, IPV4_CONNECTED_BIT);
+        heap_caps_print_heap_info(MALLOC_CAP_32BIT);
+        printf("got ip new\n");
         break;
 
     case SYSTEM_EVENT_STA_DISCONNECTED:
@@ -182,6 +189,7 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
     case SYSTEM_EVENT_STA_CONNECTED:
 #ifndef OC_IPV4
         tcpip_adapter_create_ip6_linklocal(TCPIP_ADAPTER_IF_STA);
+        printf("link local\n");
 #endif
         break;
 
@@ -196,24 +204,109 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
-static void initialise_wifi(void)
+static void initialise_wifi_old(void)
 {
     tcpip_adapter_init();
     wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    /*ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
     wifi_config_t wifi_config = {
         .sta = {
             .ssid = EXAMPLE_WIFI_SSID,
             .password = EXAMPLE_WIFI_PASS,
         },
-    };
+    };*/
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    wifi_config_t wifi_config;
+    memset(&wifi_config, 0, sizeof(wifi_config));
+    memcpy(wifi_config.sta.password, EXAMPLE_WIFI_PASS, strlen(EXAMPLE_WIFI_PASS));
+    memcpy(wifi_config.sta.ssid, EXAMPLE_WIFI_SSID, strlen(EXAMPLE_WIFI_SSID)); 
+    int i; 
+    for(i=strlen(EXAMPLE_WIFI_SSID); i<32; i++) { wifi_config.sta.ssid[i] = '\0'; } 
+    for(i=strlen(EXAMPLE_WIFI_PASS); i<64; i++) { wifi_config.sta.password[i] = '\0'; } 
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
+}
+
+void initialise_wifi(void)
+{
+    wifi_event_group = xEventGroupCreate();
+
+    tcpip_adapter_init();
+    ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL) );
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+//   _again: 
+    g_wifi_reconnect_flag = true;
+    wifi_config_t wifi_config;
+    memset(&wifi_config, 0, sizeof(wifi_config));
+    memcpy(wifi_config.sta.password, EXAMPLE_WIFI_PASS, strlen(EXAMPLE_WIFI_PASS));
+    memcpy(wifi_config.sta.ssid, EXAMPLE_WIFI_SSID, strlen(EXAMPLE_WIFI_SSID)); 
+    int i; 
+    for(i=strlen(EXAMPLE_WIFI_SSID); i<32; i++) { wifi_config.sta.ssid[i] = '\0'; } 
+    for(i=strlen(EXAMPLE_WIFI_PASS); i<64; i++) { wifi_config.sta.password[i] = '\0'; } 
+  //_again: 
+    /*g_wifi_reconnect_flag = true;
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    wifi_config_t wifi_config = {
+        .sta = {
+            .ssid = EXAMPLE_WIFI_SSID,
+            .password = EXAMPLE_WIFI_PASS
+        },
+    };*/
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
+    ESP_ERROR_CHECK(esp_wifi_start() );
+
+    vTaskDelay(5000/portTICK_PERIOD_MS);
+  
+    /*g_wifi_reconnect_flag = false;
+    ESP_LOGI(TAG, "wifi_init_sta stop sta");
+    ESP_ERROR_CHECK(esp_wifi_stop() );
+    ESP_LOGI(TAG, "wifi_init_sta deinit sta");
+    ESP_ERROR_CHECK(esp_wifi_deinit() );*/
+    //goto _again;
+    ESP_LOGI(TAG, "wifi_init_sta finished.");
+    ESP_LOGI(TAG, "connect to ap SSID:%s password:%s",
+             EXAMPLE_WIFI_SSID, EXAMPLE_WIFI_PASS);
+}
+
+void wifi_init_softap()
+{
+    wifi_event_group = xEventGroupCreate();
+
+    tcpip_adapter_init();
+    ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    wifi_config_t wifi_config = {
+        .ap = {
+            .ssid = EXAMPLE_WIFI_SSID,
+            .ssid_len = strlen(EXAMPLE_WIFI_SSID),
+            .password = EXAMPLE_WIFI_PASS,
+            .max_connection = EXAMPLE_MAX_STA_CONN,
+            .authmode = WIFI_AUTH_WPA_WPA2_PSK
+        },
+    };
+    if (strlen(EXAMPLE_WIFI_PASS) == 0) {
+        wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+    }
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    ESP_LOGI(TAG, "wifi_init_softap finished.SSID:%s password:%s",
+             EXAMPLE_WIFI_SSID, EXAMPLE_WIFI_PASS);
 }
 
 static int server_main(void* pvParameter)
@@ -273,6 +366,63 @@ static int server_main(void* pvParameter)
   oc_main_shutdown();
   return 0;
 }
+
+static int server_main_new(void* pvParameter)
+{
+  int init;
+  tcpip_adapter_ip_info_t ip4_info = { 0 };
+  struct ip6_addr if_ipaddr_ip6 = { 0 };
+  ESP_LOGI(TAG, "iotivity server task started");
+  // wait to fetch IPv4 && ipv6 address
+
+  xEventGroupWaitBits(wifi_event_group, IPV4_CONNECTED_BIT, false, true, portMAX_DELAY);
+  //xEventGroupWaitBits(wifi_event_group, IPV4_CONNECTED_BIT | IPV6_CONNECTED_BIT, false, true, portMAX_DELAY);
+
+  if ( tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip4_info) != ESP_OK) {
+      print_error("get IPv4 address failed");
+  } else {
+      ESP_LOGI(TAG, "got IPv4 addr:%s", ip4addr_ntoa(&(ip4_info.ip)));
+  }
+
+#ifndef OC_IPV4
+  if ( tcpip_adapter_get_ip6_linklocal(TCPIP_ADAPTER_IF_STA, &if_ipaddr_ip6) != ESP_OK) {
+      print_error("get IPv6 address failed");
+  } else {
+      ESP_LOGI(TAG, "got IPv6 addr:%s", ip6addr_ntoa(&if_ipaddr_ip6));
+  }
+#endif
+
+  static const oc_handler_t handler = {.init = app_init,
+                                       .signal_event_loop = signal_event_loop,
+                                       .register_resources = register_resources };
+
+  oc_clock_time_t next_event;
+
+  #ifdef OC_SECURITY
+  oc_storage_config("./server_creds");
+#endif /* OC_SECURITY Sirve cuando se define la variable SECURITY en config */
+
+  init = oc_main_init(&handler);
+  if (init < 0)
+    return init;
+
+  while (quit != 1) {
+    next_event = oc_main_poll();
+    pthread_mutex_lock(&mutex);
+    if (next_event == 0) {
+      pthread_cond_wait(&cv, &mutex);
+    } else {
+      ts.tv_sec = (next_event / OC_CLOCK_SECOND);
+      ts.tv_nsec = (next_event % OC_CLOCK_SECOND) * 1.e09 / OC_CLOCK_SECOND;
+      pthread_cond_timedwait(&cv, &mutex, &ts);
+    }
+    pthread_mutex_unlock(&mutex);
+  }
+
+  oc_main_shutdown();
+  return 0;
+}
+
 
 
 void app_main(void)
