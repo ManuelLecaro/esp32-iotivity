@@ -16,7 +16,6 @@
 
 #include "port/oc_storage.h"
 
-#ifdef OC_SECURITY
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -27,19 +26,6 @@
 static char store_path[STORE_PATH_SIZE];
 static int store_path_len;
 static bool path_set = false;
-
-int
-oc_storage_config(const char *store)
-{
-  store_path_len = strlen(store);
-  if (store_path_len >= STORE_PATH_SIZE)
-    return -ENOENT;
-
-  strncpy(store_path, store, store_path_len);
-  path_set = true;
-
-  return 0;
-}
 
 long
 oc_storage_read(const char *store, uint8_t *buf, size_t size)
@@ -61,6 +47,23 @@ oc_storage_read(const char *store, uint8_t *buf, size_t size)
   fclose(fp);
   return size;
 }
+
+#ifdef OC_SECURITY
+
+int
+oc_storage_config(const char *store)
+{
+  store_path_len = strlen(store);
+  if (store_path_len >= STORE_PATH_SIZE)
+    return -ENOENT;
+
+  strncpy(store_path, store, store_path_len);
+  path_set = true;
+
+  return 0;
+}
+
+
 
 long
 oc_storage_write(const char *store, uint8_t *buf, size_t size)

@@ -13,6 +13,15 @@ endif
 ifeq ($(SERVER), 1)
 	PROJECT_NAME := iotivity_server
 endif
+##
+##
+ifeq ($(BLINKERCLIENT),1)
+    PROJECT_NAME := esp32_blinker_client
+endif
+
+ifeq ($(BLINKERSERVER),1)
+    PROJECT_NAME := esp32_blinker_server
+endif
 
 PROJECT_NAME ?= esp32_iotivity
 
@@ -25,6 +34,14 @@ ifdef CONFIG_IOTIVITY_CLIENT
 endif
 
 ifdef CONFIG_IOTIVITY_SERVER
+    CFLAGS += -DOC_SERVER
+endif
+
+ifdef CONFIG_IOTIVITY_CLIENT_BLINKER
+    CFLAGS += -DOC_CLIENT
+endif
+
+ifdef CONFIG_IOTIVITY_SERVER_BLINKER
     CFLAGS += -DOC_SERVER
 endif
 
@@ -54,4 +71,15 @@ endif
 
 ifdef CONFIG_TCP
     CFLAGS += -DOC_TCP
+endif
+
+
+ifdef CONFIG_PKI
+    CFLAGS += -DOC_PKI
+    CFLAGS += -DMBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT
+    CFLAGS += -DMBEDTLS_SHA256_C
+    CFLAGS += -DMBEDTLS_ECP_DP_SECP256R1_ENABLED
+    CFLAGS += -DMBEDTLS_RSA_C
+    CFLAGS += -DMBEDTLS_ECDSA_C
+    CFLAGS += -DMBEDTLS_CERTS_C
 endif
