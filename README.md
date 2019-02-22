@@ -9,7 +9,13 @@ The demo is the detailed implement of IoTivity based on [IoTivity-constrained](h
 - support IPv6 OIC server
 - support IPv6 OIC client
 - support RGB light control
-- support interact with other IoTvity device
+- support TCP
+- Added ports for CoAP, CoAPs, CoAP+TCP and CoAPs+TCP
+- Secure Connection (incompleted)
+- support interact with other IoTivity device
+
+# IoTivity Lite version Updated
+Works with current IoTivity version supports OCF 2.0 specifications
 
 # Compiling and flashing the project
 Compiling the esp32-iotivity is the same as compiling any other project based on the ESP-IDF:
@@ -37,3 +43,21 @@ git submodule update --init --recursive
 7. `make CLIENT=1 flash monitor` to compile & flashing & running the client.
 
 More details are in the [esp-idf README](https://github.com/espressif/esp-idf/blob/master/README.md).
+
+# SmartPlug Demo
+New Demo added that works with two ESP32 one as interruptor(client) and other as the smartplug (server) with GPIO configuration
+
+1. Configure Server Environment with:
+    `make menuconfig`
+    `select Iotivity Examples Configuration/Blinker Server`
+    `make BLINKERSERVER=1 flash monitor` to compile & flashing & running the server
+2. Configure Client Environment with:
+    `make menuconfig`
+    `select Iotivity Examples Configuration/Blinker Client`
+    `make BLINKERCLIENT=1 flash monitor` to compile & flashing & running the interruptor
+
+# Codelab Associated to IoTivity on ESP32
+The added demos are fully explained in the following codelab [ESP32-IoTivity Codelab](https://manuellecaro.github.io/ESP32-IoTivity/).
+
+More details are in the [esp-idf README](https://github.com/espressif/esp-idf/blob/master/README.md).    
+
